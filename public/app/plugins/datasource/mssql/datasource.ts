@@ -1,21 +1,18 @@
 import _ from 'lodash';
 import ResponseParser from './response_parser';
-
-export class MssqlDatasource {
+ export class MssqlDatasource {
   id: any;
   name: any;
   responseParser: ResponseParser;
   interval: string;
-
-  /** @ngInject */
+   /** @ngInject */
   constructor(instanceSettings, private backendSrv, private $q, private templateSrv) {
     this.name = instanceSettings.name;
     this.id = instanceSettings.id;
     this.responseParser = new ResponseParser(this.$q);
     this.interval = (instanceSettings.jsonData || {}).timeInterval;
   }
-
-  interpolateVariable(value, variable) {
+   interpolateVariable(value, variable) {
     if (typeof value === 'string') {
       if (variable.multi || variable.includeAll) {
         return "'" + value.replace(/'/g, `''`) + "'";
@@ -23,22 +20,18 @@ export class MssqlDatasource {
         return value;
       }
     }
-
-    if (typeof value === 'number') {
+     if (typeof value === 'number') {
       return value;
     }
-
-    const quotedValues = _.map(value, val => {
+     const quotedValues = _.map(value, val => {
       if (typeof value === 'number') {
         return value;
       }
-
-      return "'" + val.replace(/'/g, `''`) + "'";
+       return "'" + val.replace(/'/g, `''`) + "'";
     });
     return quotedValues.join(',');
   }
-
-  query(options) {
+   query(options) {
     const queries = _.filter(options.targets, item => {
       return item.hide !== true;
     }).map(item => {
@@ -51,12 +44,10 @@ export class MssqlDatasource {
         format: item.format,
       };
     });
-
-    if (queries.length === 0) {
+     if (queries.length === 0) {
       return this.$q.when({ data: [] });
     }
-
-    return this.backendSrv
+     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
         method: 'POST',
@@ -68,20 +59,17 @@ export class MssqlDatasource {
       })
       .then(this.responseParser.processQueryResult);
   }
-
-  annotationQuery(options) {
+   annotationQuery(options) {
     if (!options.annotation.rawQuery) {
       return this.$q.reject({ message: 'Query missing in annotation definition' });
     }
-
-    const query = {
+     const query = {
       refId: options.annotation.name,
       datasourceId: this.id,
       rawSql: this.templateSrv.replace(options.annotation.rawQuery, options.scopedVars, this.interpolateVariable),
       format: 'table',
     };
-
-    return this.backendSrv
+     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
         method: 'POST',
@@ -93,32 +81,36 @@ export class MssqlDatasource {
       })
       .then(data => this.responseParser.transformAnnotationResponse(options, data));
   }
-
-  metricFindQuery(query, optionalOptions) {
+   metricFindQuery(query, optionalOptions) {
     let refId = 'tempvar';
     if (optionalOptions && optionalOptions.variable && optionalOptions.variable.name) {
       refId = optionalOptions.variable.name;
     }
-
-    const interpolatedQuery = {
+     const interpolatedQuery = {
       refId: refId,
       datasourceId: this.id,
       rawSql: this.templateSrv.replace(query, {}, this.interpolateVariable),
       format: 'table',
     };
-
-    return this.backendSrv
+     const data = {
+        queries: [interpolatedQuery],
+    };
+     if (optionalOptions && optionalOptions.range && optionalOptions.range.from) {
+      data['from'] = optionalOptions.range.from.valueOf().toString();
+    }
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.to) {
+      data['to'] = optionalOptions.range.to.valueOf().toString();
+    }
+     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
         method: 'POST',
-        data: {
-          queries: [interpolatedQuery],
+        data: data,
         },
       })
       .then(data => this.responseParser.parseMetricFindQueryResult(refId, data));
   }
-
-  testDatasource() {
+   testDatasource() {
     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
