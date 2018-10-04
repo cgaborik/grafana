@@ -5,20 +5,18 @@ export class MssqlDatasource {
   id: any;
   name: any;
   responseParser: ResponseParser;
-  interval: string;
 
-  /** @ngInject */
+  /** @ngInject **/
   constructor(instanceSettings, private backendSrv, private $q, private templateSrv) {
     this.name = instanceSettings.name;
     this.id = instanceSettings.id;
     this.responseParser = new ResponseParser(this.$q);
-    this.interval = (instanceSettings.jsonData || {}).timeInterval;
   }
 
   interpolateVariable(value, variable) {
     if (typeof value === 'string') {
       if (variable.multi || variable.includeAll) {
-        return "'" + value.replace(/'/g, `''`) + "'";
+        return "'" + value + "'";
       } else {
         return value;
       }
@@ -28,18 +26,18 @@ export class MssqlDatasource {
       return value;
     }
 
-    const quotedValues = _.map(value, val => {
+    var quotedValues = _.map(value, function(val) {
       if (typeof value === 'number') {
         return value;
       }
 
-      return "'" + val.replace(/'/g, `''`) + "'";
+      return "'" + val + "'";
     });
     return quotedValues.join(',');
   }
 
   query(options) {
-    const queries = _.filter(options.targets, item => {
+    var queries = _.filter(options.targets, item => {
       return item.hide !== true;
     }).map(item => {
       return {
@@ -107,13 +105,22 @@ export class MssqlDatasource {
       format: 'table',
     };
 
+    const data = {
+      queries: [interpolatedQuery],
+    };
+
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.from) {
+      data['from'] = optionalOptions.range.from.valueOf().toString();
+    }
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.to) {
+      data['to'] = optionalOptions.range.to.valueOf().toString();
+    }
+
     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
         method: 'POST',
-        data: {
-          queries: [interpolatedQuery],
-        },
+        data: data,
       })
       .then(data => this.responseParser.parseMetricFindQueryResult(refId, data));
   }
