@@ -106,14 +106,23 @@ export class MssqlDatasource {
       rawSql: this.templateSrv.replace(query, {}, this.interpolateVariable),
       format: 'table',
     };
+    
+    const data = {
+      queries: [interpolatedQuery],
+    };
+
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.from) {
+      data['from'] = optionalOptions.range.from.valueOf().toString();
+    }
+    if (optionalOptions && optionalOptions.range && optionalOptions.range.to) {
+      data['to'] = optionalOptions.range.to.valueOf().toString();
+    }
 
     return this.backendSrv
       .datasourceRequest({
         url: '/api/tsdb/query',
         method: 'POST',
-        data: {
-          queries: [interpolatedQuery],
-        },
+        data: data,
       })
       .then(data => this.responseParser.parseMetricFindQueryResult(refId, data));
   }
